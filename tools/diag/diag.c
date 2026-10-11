@@ -71,11 +71,13 @@ static void list_dir(const char *path, const char *filter) {
 }
 
 static int list_mounts(void) {
-    static struct statfs fs[128];
+    static struct statfs fs[1024];
     int n = getfsstat(fs, sizeof(fs), MNT_NOWAIT);
     int ext = 0;
     if (n < 0) { out("  getfsstat fallo\n"); return 0; }
+    out("  total montajes: %d\n", n);
     for (int i = 0; i < n; i++) {
+        if (strncmp(fs[i].f_mntonname, "/mnt/sandbox/", 13) == 0) continue;
         out("  %-28s <- %-28s [%s]\n", fs[i].f_mntonname, fs[i].f_mntfromname, fs[i].f_fstypename);
         if (strncmp(fs[i].f_mntonname, "/mnt/ext", 8) == 0) ext = 1;
     }
@@ -113,6 +115,16 @@ int main(void) {
 
     out("\n[montajes]\n");
     int ext = list_mounts();
+
+    out("\n[statfs por punto]\n");
+    const char *pts[] = {"/mnt/ext0", "/mnt/ext1", "/mnt/usb0", "/mnt/usb1", "/mnt/original_m2", "/mnt"};
+    for (unsigned i = 0; i < sizeof(pts) / sizeof(pts[0]); i++) {
+        struct statfs f;
+        if (statfs(pts[i], &f) == 0)
+            out("  %-18s -> on=%s from=%s [%s]\n", pts[i], f.f_mntonname, f.f_mntfromname, f.f_fstypename);
+        else
+            out("  %-18s -> statfs fallo\n", pts[i]);
+    }
 
     out("\n[/mnt]\n");
     list_dir("/mnt", NULL);
